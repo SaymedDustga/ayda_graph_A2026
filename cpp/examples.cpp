@@ -7,8 +7,8 @@
 
 #include <iostream>
 #include <string>
-#include "graph.hpp"
-#include "graph_builders.hpp"
+#include <graph.hpp>
+#include <graph_builders.hpp>
 
 using namespace graph_lib;
 
