@@ -1,0 +1,36 @@
+*.gv
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+python_env/
+*.egg
+*.egg-info/
+dist/
+build/
+*.pyc
+
+# Compilados C++
+*.out
+*.o
+*.exe
+*.obj
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos de prueba locales
+test_*.txt
+*.txt
