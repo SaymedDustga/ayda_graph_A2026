@@ -103,11 +103,7 @@ class GraphBuilder:
             nodes.append(g.add_node_by_value(node_name_generator(i)))
 
         for i in range(n):
-            for j in range(n):
-                if i == j:
-                    continue
-
-                # Bernoulli trial to determine edge existence
+            for j in range(i + 1, n):
                 if random.random() < p:
                     GraphBuilder._add_default_arc(g, nodes[i], nodes[j])
 

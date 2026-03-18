@@ -1,5 +1,9 @@
 *.gv
 
+# Rust
+*.lock
+target/
+
 # Python
 __pycache__/
 *.py[cod]
