@@ -6,7 +6,7 @@ In this module, you will move beyond theory and implement some of the most impor
 
 ## The Goal
 
-You do not need to build a graph from scratch. The core architecture—including nodes, arcs, dynamic weights, and graph builders—are already provided.
+You do not need to build a graph from scratch. The core architecture—including nodes, arcs, dynamic weights, and graph builders—is already provided.
 
 Your task is to open the **graph_algorithms** file for your assigned language and replace all the `TODO` markers (which currently throw "Not Implemented" errors) with working code.
 
