@@ -124,8 +124,9 @@ class Graph(ABC, Generic[NodeType, WeightType]):
         self._nodes: Set[Node[NodeType]] = set()
         self._arcs: Set[Arc[NodeType, WeightType]] = set()
 
-        # Adjacency list is critical for the O((V+E) log V) time complexity in algorithms.
-        self._adj_list: Dict[Node[NodeType], List[Arc[NodeType, WeightType]]] = {}
+        # Adjacency lists are critical for the O((V+E) log V) time complexity in algorithms.
+        self._out_adj_list: Dict[Node[NodeType], List[Arc[NodeType, WeightType]]] = {}
+        self._in_adj_list: Dict[Node[NodeType], List[Arc[NodeType, WeightType]]] = {}
 
     # --- Python Data Model Magic Methods ---
 
@@ -155,7 +156,8 @@ class Graph(ABC, Generic[NodeType, WeightType]):
         """
         node = Node(value)
         self._nodes.add(node)
-        self._adj_list[node] = []
+        self._out_adj_list[node] = []
+        self._in_adj_list[node] = []
         return node
 
     def add_node(self, node: Node[NodeType]) -> None:
@@ -166,8 +168,10 @@ class Graph(ABC, Generic[NodeType, WeightType]):
             node (Node[NodeType]): The node to insert.
         """
         self._nodes.add(node)
-        if node not in self._adj_list:
-            self._adj_list[node] = []
+        if node not in self._out_adj_list:
+            self._out_adj_list[node] = []
+        if node not in self._in_adj_list:
+            self._in_adj_list[node] = []
 
     @abstractmethod
     def add_arc(self, source: Node[NodeType], target: Node[NodeType], weight: Union[WeightType, Callable[[], WeightType], None] = None) -> Arc[NodeType, WeightType]:
@@ -194,17 +198,20 @@ class Graph(ABC, Generic[NodeType, WeightType]):
         """Set[Arc]: Retrieves the set of all arcs in the graph."""
         return self._arcs
 
-    def get_incident_arcs(self, node: Node[NodeType]) -> List[Arc[NodeType, WeightType]]:
-        """
-        Retrieves all incident arcs for a given node. Essential for efficient graph traversal.
+    def get_outgoing_arcs(self, node: Node[NodeType]) -> List[Arc[NodeType, WeightType]]:
+        return self._out_adj_list.get(node, [])
 
-        Args:
-            node (Node[NodeType]): The node to query.
+    def get_incoming_arcs(self, node: Node[NodeType]) -> List[Arc[NodeType, WeightType]]:
+        return self._in_adj_list.get(node, [])
 
-        Returns:
-            List[Arc]: A list of arcs connected to the node. Returns an empty list if node has no arcs.
-        """
-        return self._adj_list.get(node, [])
+    def get_out_degree(self, node: Node[NodeType]) -> int:
+        return len(self.get_outgoing_arcs(node))
+
+    def get_in_degree(self, node: Node[NodeType]) -> int:
+        return len(self.get_incoming_arcs(node))
+
+    def get_degree(self, node: Node[NodeType]) -> int:
+        return self.get_out_degree(node) + self.get_in_degree(node)
 
     def save_to_file(self, filename: str) -> None:
         """
@@ -324,7 +331,11 @@ class DirectedGraph(Graph[NodeType, WeightType]):
 
         arc = Arc(source, target, weight)
         self._arcs.add(arc)
-        self._adj_list[source].append(arc) # Directed: only added to source's list
+
+        # Directed: The edge is outgoing from source and incoming to target.
+        self._out_adj_list[source].append(arc)
+        self._in_adj_list[target].append(arc)
+
         return arc
 
     def print_graph(self) -> None:
@@ -376,8 +387,11 @@ class UndirectedGraph(Graph[NodeType, WeightType]):
         self._arcs.add(arc)
 
         # Undirected: The edge is incident to both source and target.
-        self._adj_list[source].append(arc)
-        self._adj_list[target].append(arc)
+        self._out_adj_list[source].append(arc)
+        self._in_adj_list[source].append(arc)
+        self._out_adj_list[target].append(arc)
+        self._in_adj_list[target].append(arc)
+
         return arc
 
     def print_graph(self) -> None:

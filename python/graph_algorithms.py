@@ -38,19 +38,20 @@ class GraphTraversals:
     """Provides graph traversal algorithms (BFS, DFS) and related operations."""
 
     @staticmethod
-    def traverse_bfs(graph: GraphType, start: Node[NodeType], visit: Callable[[Node[NodeType]], None]) -> None:
+    def traverse_bfs(graph: GraphType, start: Node[NodeType], op: Callable[[Node[NodeType]], None]) -> None:
         """
         Performs a Breadth-First Search traversal starting from a given node.
 
         Args:
             graph (GraphType): The graph to traverse.
             start (Node[NodeType]): The starting node.
-            visit (Callable): Callback function (Visitor pattern) invoked for each visited node.
+            op (Callable): Unary operation (Visitor pattern) invoked for each visited node.
         """
         if not isinstance(graph, Graph): raise TypeError("Expected a Graph instance.")
         if start not in graph: raise ValueError("Source node not in graph.")
 
         # TODO: Implement BFS using collections.deque
+        # HINT: Use graph.get_outgoing_arcs() and call op(current_node) when processed.
         raise NotImplementedError("traverse_bfs is not implemented yet!")
 
     @staticmethod
@@ -65,7 +66,7 @@ class GraphTraversals:
         raise NotImplementedError("find_shortest_path_bfs is not implemented yet!")
 
     @staticmethod
-    def traverse_dfs(graph: GraphType, start: Node[NodeType], visit: Callable[[Node[NodeType]], None]) -> None:
+    def traverse_dfs(graph: GraphType, start: Node[NodeType], op: Callable[[Node[NodeType]], None]) -> None:
         """
         Performs a Depth-First Search traversal starting from a node.
         """
@@ -73,6 +74,7 @@ class GraphTraversals:
         if start not in graph: raise ValueError("Source node not in graph.")
 
         # TODO: Implement DFS. (Hint: Create a private recursive helper method `_dfs_recursive`).
+        # HINT: Use graph.get_outgoing_arcs() and call op(current_node) when processed.
         raise NotImplementedError("traverse_dfs is not implemented yet!")
 
     @staticmethod
@@ -81,7 +83,7 @@ class GraphTraversals:
         if not isinstance(graph, Graph): raise TypeError("Expected a Graph instance.")
         if start not in graph: raise ValueError("Source node not in graph.")
 
-        # TODO: Traverse the graph using DFS and add the discovered edges to a new GraphType.
+        # TODO: Traverse the graph using DFS and build a new GraphType.
         raise NotImplementedError("build_spanning_tree_dfs is not implemented yet!")
 
     @staticmethod
@@ -90,7 +92,7 @@ class GraphTraversals:
         if not isinstance(graph, Graph): raise TypeError("Expected a Graph instance.")
         if start not in graph: raise ValueError("Source node not in graph.")
 
-        # TODO: Traverse the graph using BFS and add the discovered edges to a new GraphType.
+        # TODO: Traverse the graph using BFS and build a new GraphType.
         raise NotImplementedError("build_spanning_tree_bfs is not implemented yet!")
 
 
@@ -106,6 +108,7 @@ class GraphProperties:
         if not isinstance(graph, Graph): raise TypeError("Expected a Graph instance.")
 
         # TODO: Implement cycle detection using in-degrees.
+        # HINT: You can easily get in-degrees using graph.get_in_degree(node).
         raise NotImplementedError("has_cycle is not implemented yet!")
 
     @staticmethod

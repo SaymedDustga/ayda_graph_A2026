@@ -19,10 +19,9 @@ template <typename GraphType>
 class Dijkstra
 {
 public:
-    using NodeType = typename GraphType::NodeValueType;
     using WeightType = typename GraphType::ArcWeightType;
-    using NodePtr = std::shared_ptr<Node<NodeType>>;
-    using ArcPtr = std::shared_ptr<Arc<NodeType, WeightType>>;
+    using NodePtr    = typename GraphType::NodePtr;
+    using ArcPtr     = typename GraphType::ArcPtr;
 
     struct NodeInfo
     {
@@ -54,19 +53,19 @@ template <typename GraphType>
 class GraphTraversals
 {
 public:
-    using NodeType = typename GraphType::NodeValueType;
-    using NodePtr = std::shared_ptr<Node<NodeType>>;
+    using NodePtr = typename GraphType::NodePtr;
 
     /**
      * @brief Performs a Breadth-First Search traversal starting from a node.
      * @param graph The graph to traverse.
      * @param start The starting node.
-     * @param visit Callback function invoked for each visited node.
+     * @param op Unary operation (Visitor pattern) invoked for each visited node.
      * @par Time complexity: O(V + E)
      */
-    static void traverseBFS(const GraphType& graph, NodePtr start, std::function<void(NodePtr)> visit)
+    static void traverseBFS(const GraphType& graph, NodePtr start, std::function<void(NodePtr)> op)
     {
         // TODO: Implement BFS using a Queue. Ensure nodes are only visited once.
+        // HINT: Use graph.getOutgoingArcs() and call op(current_node) when a node is processed.
         throw std::logic_error("traverseBFS is not implemented yet!");
     }
 
@@ -87,12 +86,13 @@ public:
      * @brief Performs a Depth-First Search traversal starting from a node.
      * @param graph The graph to traverse.
      * @param start The starting node.
-     * @param visit Callback function invoked for each visited node.
+     * @param op Unary operation (Visitor pattern) invoked for each visited node.
      * @par Time complexity: O(V + E)
      */
-    static void traverseDFS(const GraphType& graph, NodePtr start, std::function<void(NodePtr)> visit)
+    static void traverseDFS(const GraphType& graph, NodePtr start, std::function<void(NodePtr)> op)
     {
         // TODO: Implement DFS (You may want to create a private recursive helper function).
+        // HINT: Use graph.getOutgoingArcs() and call op(current_node) when a node is processed.
         throw std::logic_error("traverseDFS is not implemented yet!");
     }
 
@@ -128,8 +128,7 @@ template <typename GraphType>
 class GraphProperties
 {
 public:
-    using NodeType = typename GraphType::NodeValueType;
-    using NodePtr = std::shared_ptr<Node<NodeType>>;
+    using NodePtr = typename GraphType::NodePtr;
 
     /**
      * @brief Detects cycles in a directed graph using Kahn's algorithm.
@@ -138,7 +137,8 @@ public:
      */
     static bool hasCycle(const GraphType& graph)
     {
-        // TODO: Implement cycle detection (Hint: In-degrees and Kahn's Algorithm).
+        // TODO: Implement cycle detection using Kahn's Algorithm concepts.
+        // HINT: You can easily get in-degrees using graph.getInDegree(node).
         throw std::logic_error("hasCycle is not implemented yet!");
     }
 
@@ -160,7 +160,7 @@ public:
      */
     static std::vector<std::vector<NodePtr>> computeStronglyConnectedComponents(const GraphType& graph)
     {
-        // TODO: Implement Kosaraju's Algorithm (1. DFS for finishing times, 2. Invert Graph, 3. DFS based on finishing times).
+        // TODO: Implement Kosaraju's Algorithm.
         throw std::logic_error("computeStronglyConnectedComponents is not implemented yet!");
     }
 };
@@ -172,8 +172,7 @@ template <typename GraphType>
 class GraphTopological
 {
 public:
-    using NodeType = typename GraphType::NodeValueType;
-    using NodePtr = std::shared_ptr<Node<NodeType>>;
+    using NodePtr = typename GraphType::NodePtr;
 
     /**
      * @brief Computes a topological ordering of the graph's nodes.
@@ -183,7 +182,7 @@ public:
      */
     static std::vector<NodePtr> getSort(const GraphType& graph)
     {
-        // TODO: Implement Topological Sort using Kahn's Algorithm or DFS. Throw exception on cycle.
+        // TODO: Implement Topological Sort using Kahn's Algorithm. Throw an exception on cycle.
         throw std::logic_error("getSort is not implemented yet!");
     }
 

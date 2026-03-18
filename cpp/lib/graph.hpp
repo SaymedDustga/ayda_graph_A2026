@@ -136,44 +136,46 @@ public:
 template <typename NodeType, typename WeightType>
 class Graph
 {
-protected:
-    // NOTE: std::unordered_set hashes the raw pointer address by default.
-    // If you need to identify nodes by their internal value, consider providing a custom hash function.
-    std::unordered_set<std::shared_ptr<Node<NodeType>>> nodes;
-    std::unordered_set<std::shared_ptr<Arc<NodeType, WeightType>>> arcs;
-
-    // Adjacency list is critical for the O((V+E) log V) time complexity in algorithms like Dijkstra.
-    std::unordered_map<std::shared_ptr<Node<NodeType>>, std::vector<std::shared_ptr<Arc<NodeType, WeightType>>>> adj_list;
-
 public:
     using NodeValueType = NodeType;
     using ArcWeightType = WeightType;
     using NodePtr = std::shared_ptr<Node<NodeType>>;
     using ArcPtr  = std::shared_ptr<Arc<NodeType, WeightType>>;
 
+protected:
+    // NOTE: std::unordered_set hashes the raw pointer address by default.
+    // If you need to identify nodes by their internal value, consider providing a custom hash function.
+    std::unordered_set<NodePtr> nodes;
+    std::unordered_set<ArcPtr> arcs;
+
+    // Adjacency lists are critical for the O((V+E) log V) time complexity in algorithms like Dijkstra.
+    std::unordered_map<NodePtr, std::vector<ArcPtr>> out_adj_list; // For directed graphs, this list contains outgoing arcs. For undirected graphs, it contains all incident arcs.
+    std::unordered_map<NodePtr, std::vector<ArcPtr>> in_adj_list; // For undirected graphs, in_adj_list will mirror out_adj_list.
+
+public:
     virtual ~Graph() = default;
 
-    std::shared_ptr<Node<NodeType>> addNode(const NodeType& value)
+    NodePtr addNode(const NodeType& value)
     {
         auto node = std::make_shared<Node<NodeType>>(value);
         nodes.insert(node);
         return node;
     }
 
-    void addNode(std::shared_ptr<Node<NodeType>> node)
+    void addNode(NodePtr node)
     {
         nodes.insert(std::move(node));
     }
 
     // Pure virtual methods to enforce implementation in derived classes
-    virtual std::shared_ptr<Arc<NodeType, WeightType>> addArc(
-        std::shared_ptr<Node<NodeType>> source,
-        std::shared_ptr<Node<NodeType>> target,
+    virtual ArcPtr addArc(
+        NodePtr source,
+        NodePtr target,
         std::function<WeightType()> weight_func) = 0;
 
-    virtual std::shared_ptr<Arc<NodeType, WeightType>> addArc(
-        std::shared_ptr<Node<NodeType>> source,
-        std::shared_ptr<Node<NodeType>> target,
+    virtual ArcPtr addArc(
+        NodePtr source,
+        NodePtr target,
         const WeightType& fixed_weight) = 0;
 
     virtual void printGraph() const = 0;
@@ -182,14 +184,75 @@ public:
     const auto& getNodes() const noexcept { return nodes; }
     const auto& getArcs() const noexcept { return arcs; }
 
-    /**
-     * @brief Retrieves all incident arcs for a given node. Essential for efficient graph traversal.
-     */
-    const std::vector<std::shared_ptr<Arc<NodeType, WeightType>>>& getIncidentArcs(const std::shared_ptr<Node<NodeType>>& node) const
+    const std::vector<ArcPtr>& getOutgoingArcs(const NodePtr& node) const
     {
-        static const std::vector<std::shared_ptr<Arc<NodeType, WeightType>>> empty_list;
-        auto it = adj_list.find(node);
-        return it != adj_list.end() ? it->second : empty_list;
+        static const std::vector<ArcPtr> empty_list;
+        auto it = out_adj_list.find(node);
+        return it != out_adj_list.end() ? it->second : empty_list;
+    }
+
+    const std::vector<ArcPtr>& getIncomingArcs(const NodePtr& node) const
+    {
+        static const std::vector<ArcPtr> empty_list;
+        auto it = in_adj_list.find(node);
+        return it != in_adj_list.end() ? it->second : empty_list;
+    }
+
+    size_t getOutDegree(const NodePtr& node) const
+    {
+        return getOutgoingArcs(node).size();
+    }
+
+    size_t getInDegree(const NodePtr& node) const
+    {
+        return getIncomingArcs(node).size();
+    }
+
+    size_t getDegree(const NodePtr& node) const
+    {
+        return getOutDegree(node) + getInDegree(node);
+    }
+
+    /**
+     * @brief Persists the graph's current state into a text file.
+     * Follows a sequential serialization format: Node count, Node data, Arc count, Arc connections.
+     * @param filename The destination file path.
+     * @throws GraphException if the file cannot be opened.
+     */
+    void saveToFile(const std::string& filename) const
+    {
+        std::ofstream file(filename);
+        if (!file.is_open()) throw GraphException("Could not open file for writing.");
+
+        // 1. Write total number of nodes
+        file << this->nodes.size() << "\n";
+
+        // 2. Map nodes to integer indices for O(1) serialization and write node values
+        std::unordered_map<NodePtr, int> node_to_index;
+        int index = 0;
+
+        std::vector<NodePtr> ordered_nodes(this->nodes.begin(), this->nodes.end());
+        for (const auto& node : ordered_nodes)
+        {
+            node_to_index[node] = index++;
+            file << node->getValue() << "\n";
+        }
+
+        // 3. Write total number of arcs
+        file << this->arcs.size() << "\n";
+
+        // 4. Write arc connections using node indices and evaluate weight functions
+        for (const auto& arc : this->arcs)
+        {
+            file << node_to_index[arc->getSrcNode()] << " " << node_to_index[arc->getTgtNode()];
+
+            // Compile-time evaluation: Only write weight if the graph is weighted
+            if constexpr (!std::is_same_v<WeightType, NoWeight>)
+            {
+                file << " " << arc->getWeight();
+            }
+            file << "\n";
+        }
     }
 };
 
@@ -200,9 +263,12 @@ template <typename NodeType, typename WeightType = NoWeight>
 class DirectedGraph : public Graph<NodeType, WeightType>
 {
 public:
-    std::shared_ptr<Arc<NodeType, WeightType>> addArc(
-        std::shared_ptr<Node<NodeType>> source,
-        std::shared_ptr<Node<NodeType>> target,
+    using typename Graph<NodeType, WeightType>::NodePtr;
+    using typename Graph<NodeType, WeightType>::ArcPtr;
+
+    ArcPtr addArc(
+        NodePtr source,
+        NodePtr target,
         std::function<WeightType()> weight_func = [] { return WeightType{}; }) override
     {
         if (this->nodes.find(source) == this->nodes.end() || this->nodes.find(target) == this->nodes.end())
@@ -212,13 +278,17 @@ public:
 
         auto arc = std::make_shared<Arc<NodeType, WeightType>>(source, target, std::move(weight_func));
         this->arcs.insert(arc);
-        this->adj_list[source].push_back(arc);
+
+        // Directed: The origin has an outward arc, the destination has an inward one
+        this->out_adj_list[source].push_back(arc);
+        this->in_adj_list[target].push_back(arc);
+
         return arc;
     }
 
-    std::shared_ptr<Arc<NodeType, WeightType>> addArc(
-        std::shared_ptr<Node<NodeType>> source,
-        std::shared_ptr<Node<NodeType>> target,
+    ArcPtr addArc(
+        NodePtr source,
+        NodePtr target,
         const WeightType& value) override
     {
         if (this->nodes.find(source) == this->nodes.end() || this->nodes.find(target) == this->nodes.end())
@@ -228,7 +298,11 @@ public:
 
         auto arc = std::make_shared<Arc<NodeType, WeightType>>(source, target, value);
         this->arcs.insert(arc);
-        this->adj_list[source].push_back(arc);
+
+        // Directed: The origin has an outward arc, the destination has an inward one
+        this->out_adj_list[source].push_back(arc);
+        this->in_adj_list[target].push_back(arc);
+
         return arc;
     }
 
@@ -269,48 +343,6 @@ public:
     }
 
     /**
-     * @brief Persists the graph's current state into a text file.
-     * Follows a sequential serialization format: Node count, Node data, Arc count, Arc connections.
-     * @param filename The destination file path.
-     * @throws GraphException if the file cannot be opened.
-     */
-    void saveToFile(const std::string& filename) const
-    {
-        std::ofstream file(filename);
-        if (!file.is_open()) throw GraphException("Could not open file for writing.");
-
-        // 1. Write total number of nodes
-        file << this->nodes.size() << "\n";
-
-        // 2. Map nodes to integer indices for O(1) serialization and write node values
-        std::unordered_map<std::shared_ptr<Node<NodeType>>, int> node_to_index;
-        int index = 0;
-
-        std::vector<std::shared_ptr<Node<NodeType>>> ordered_nodes(this->nodes.begin(), this->nodes.end());
-        for (const auto& node : ordered_nodes)
-        {
-            node_to_index[node] = index++;
-            file << node->getValue() << "\n";
-        }
-
-        // 3. Write total number of arcs
-        file << this->arcs.size() << "\n";
-
-        // 4. Write arc connections using node indices and evaluate weight functions
-        for (const auto& arc : this->arcs)
-        {
-            file << node_to_index[arc->getSrcNode()] << " " << node_to_index[arc->getTgtNode()];
-
-            // Compile-time evaluation: Only write weight if the graph is weighted
-            if constexpr (!std::is_same_v<WeightType, NoWeight>)
-            {
-                file << " " << arc->getWeight();
-            }
-            file << "\n";
-        }
-    }
-
-    /**
      * @brief Instantiates a new graph by deserializing a text file.
      * @param filename The source file path.
      * @return DirectedGraph<NodeType, WeightType> The reconstructed graph.
@@ -325,7 +357,7 @@ public:
         int num_nodes;
         if (!(file >> num_nodes)) return g;
 
-        std::vector<std::shared_ptr<Node<NodeType>>> index_to_node(num_nodes);
+        std::vector<NodePtr> index_to_node(num_nodes);
         for (int i = 0; i < num_nodes; ++i)
         {
             NodeType value;
@@ -363,9 +395,12 @@ template <typename NodeType, typename WeightType = NoWeight>
 class UndirectedGraph : public Graph<NodeType, WeightType>
 {
 public:
-    std::shared_ptr<Arc<NodeType, WeightType>> addArc(
-        std::shared_ptr<Node<NodeType>> source,
-        std::shared_ptr<Node<NodeType>> target,
+    using typename Graph<NodeType, WeightType>::NodePtr;
+    using typename Graph<NodeType, WeightType>::ArcPtr;
+
+    ArcPtr addArc(
+        NodePtr source,
+        NodePtr target,
         std::function<WeightType()> weight_func = [] { return WeightType{}; }) override
     {
         if (this->nodes.find(source) == this->nodes.end() || this->nodes.find(target) == this->nodes.end())
@@ -377,15 +412,17 @@ public:
         this->arcs.insert(arc);
 
         // Undirected: The edge is incident to both source and target.
-        this->adj_list[source].push_back(arc);
-        this->adj_list[target].push_back(arc);
+        this->out_adj_list[source].push_back(arc);
+        this->in_adj_list[source].push_back(arc);
+        this->out_adj_list[target].push_back(arc);
+        this->in_adj_list[target].push_back(arc);
 
         return arc;
     }
 
-    std::shared_ptr<Arc<NodeType, WeightType>> addArc(
-        std::shared_ptr<Node<NodeType>> source,
-        std::shared_ptr<Node<NodeType>> target,
+    ArcPtr addArc(
+        NodePtr source,
+        NodePtr target,
         const WeightType& value) override
     {
         if (this->nodes.find(source) == this->nodes.end() || this->nodes.find(target) == this->nodes.end())
@@ -397,8 +434,10 @@ public:
         this->arcs.insert(arc);
 
         // Undirected: The edge is incident to both source and target.
-        this->adj_list[source].push_back(arc);
-        this->adj_list[target].push_back(arc);
+        this->out_adj_list[source].push_back(arc);
+        this->in_adj_list[source].push_back(arc);
+        this->out_adj_list[target].push_back(arc);
+        this->in_adj_list[target].push_back(arc);
 
         return arc;
     }
@@ -440,63 +479,21 @@ public:
     }
 
     /**
-     * @brief Persists the graph's current state into a text file.
-     * Follows a sequential serialization format: Node count, Node data, Arc count, Arc connections.
-     * @param filename The destination file path.
-     * @throws GraphException if the file cannot be opened.
-     */
-    void saveToFile(const std::string& filename) const
-    {
-        std::ofstream file(filename);
-        if (!file.is_open()) throw GraphException("Could not open file for writing.");
-
-        // 1. Write total number of nodes
-        file << this->nodes.size() << "\n";
-
-        // 2. Map nodes to integer indices for O(1) serialization and write node values
-        std::unordered_map<std::shared_ptr<Node<NodeType>>, int> node_to_index;
-        int index = 0;
-
-        std::vector<std::shared_ptr<Node<NodeType>>> ordered_nodes(this->nodes.begin(), this->nodes.end());
-        for (const auto& node : ordered_nodes)
-        {
-            node_to_index[node] = index++;
-            file << node->getValue() << "\n";
-        }
-
-        // 3. Write total number of arcs
-        file << this->arcs.size() << "\n";
-
-        // 4. Write arc connections using node indices and evaluate weight functions
-        for (const auto& arc : this->arcs)
-        {
-            file << node_to_index[arc->getSrcNode()] << " " << node_to_index[arc->getTgtNode()];
-
-            // Compile-time evaluation: Only write weight if the graph is weighted
-            if constexpr (!std::is_same_v<WeightType, NoWeight>)
-            {
-                file << " " << arc->getWeight();
-            }
-            file << "\n";
-        }
-    }
-
-    /**
      * @brief Instantiates a new graph by deserializing a text file.
      * @param filename The source file path.
-     * @return DirectedGraph<NodeType, WeightType> The reconstructed graph.
+     * @return UndirectedGraph<NodeType, WeightType> The reconstructed graph.
      * @throws GraphException if the file cannot be opened or parsed.
      */
-    static DirectedGraph<NodeType, WeightType> loadFromFile(const std::string& filename)
+    static UndirectedGraph<NodeType, WeightType> loadFromFile(const std::string& filename)
     {
-        DirectedGraph<NodeType, WeightType> g;
+        UndirectedGraph<NodeType, WeightType> g;
         std::ifstream file(filename);
         if (!file.is_open()) throw GraphException("Could not open file for reading.");
 
         int num_nodes;
         if (!(file >> num_nodes)) return g;
 
-        std::vector<std::shared_ptr<Node<NodeType>>> index_to_node(num_nodes);
+        std::vector<NodePtr> index_to_node(num_nodes);
         for (int i = 0; i < num_nodes; ++i)
         {
             NodeType value;
